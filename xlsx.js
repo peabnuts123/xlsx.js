@@ -191,7 +191,8 @@ function xlsx(file) {
 						fontSize: cell.fontSize,
 						formatCode: cell.formatCode || 'General',
                         bgColor: cell.bgColor,
-                        color: cell.color
+                        color: cell.color,
+                        wrapText: cell.wrapText || false
 					};
 					colWidth = 0;
 					if ((cell.type && cell.type === 'text') || (val && typeof val === 'string' && !isFinite(val))) { 
@@ -446,13 +447,16 @@ function xlsx(file) {
 				(fontIndex > 0 ? 'applyFont="1" ' : ' '),
 				'>'
 			];
-			if (style.hAlign || style.vAlign) {
+			if (style.hAlign || style.vAlign || style.wrapText) {
 				styles[i].push('<alignment');
 				if (style.hAlign) {
 					styles[i].push(' horizontal="', style.hAlign, '"');
 				}
 				if (style.vAlign) {
 					styles[i].push(' vertical="', style.vAlign, '"');
+				}
+				if (style.wrapText) {
+					styles[i].push(' wrapText="1"');
 				}
 				styles[i].push('/>');
 			}
