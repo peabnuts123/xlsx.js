@@ -178,6 +178,7 @@ function xlsx(file) {
 				j = -1;
 				heightXML = (maxHeight > -1 ? 'ht="' + maxHeight + '" customHeight="1"' : '');
 				s += '<row r="' + (i + 1) + '" ' + heightXML + ' x14ac:dyDescent="0.25">';
+				
 				while (++j < k) {
 					cell = data[i][j]; val = cell.hasOwnProperty('value') ? cell.value : cell; t = '';
 					style = {
@@ -223,9 +224,26 @@ function xlsx(file) {
 					if (index < 0) { style = styles.push(style) - 1; }
 					else { style = index; }
 					// keeps largest cell in column, and autoWidth flag that may be set on any cell
-					if (columns[j] == null) { columns[j] = { autoWidth: false, max:0 }; }
-					if (cell.autoWidth) { columns[j].autoWidth = true; }
-					if (colWidth > columns[j].max) { columns[j].max = colWidth; }
+					if (columns[j] == null) {
+						//Create Default cell
+						columns[j] = { 
+							autoWidth: false, 
+							max:0, 
+							fixedWidth: false 
+						}; 
+					}
+					//Copy across auto/fixed width properties
+					if (cell.autoWidth) { 
+						columns[j].autoWidth = true; 
+					}
+					if (cell.width) { 
+						columns[j].fixedWidth = true; 
+						columns[j].max = cell.width; 
+					}
+					//If the current colwidth is greather than this cell and it is auto-width, update its width
+					if (colWidth > columns[j].max && !columns[j].fixedWidth) { 
+						columns[j].max = colWidth; 
+					}
 					// store merges if needed and add missing cells. Cannot have rowSpan AND colSpan
 					if (cell.colSpan > 1) {
 						// horizontal merge. ex: B12:E12. Add missing cells (with same attribute but value) to current row
@@ -268,7 +286,9 @@ function xlsx(file) {
 			cols = []
 			for (i = 0; i < columns.length; i++) {
 				if (columns[i].autoWidth) {
-					cols.push('<col min="', i+1, '" max="', i+1, '" width="', columns[i].max, '" bestFit="1"/>');
+					cols.push('<col min="', i + 1, '" max="', i + 1, '" width="', columns[i].max + 1, '" bestFit="1"/>');
+					} else if (columns[i].fixedWidth) {
+			        cols.push('<col min="', i + 1, '" max="', i + 1, '" width="', columns[i].max, '"/>');
 				}
 			}
 			// only add cols definition if not empty
