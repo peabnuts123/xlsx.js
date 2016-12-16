@@ -11,7 +11,7 @@ if ((typeof JSZip === 'undefined' || !JSZip) && typeof require === 'function') {
 function xlsx(file) { 
 	'use strict'; // v2.3.2
 
-	var result, zip = new JSZip(), zipTime, processTime, s, f, i, j, k, l, t, w, sharedStrings, styles, index, data, val, style, borders, border, borderIndex, fonts, font, fontIndex,
+	var result, zip = new JSZip(), zipTime, processTime, s, f, i, j, k, l, t, w, sharedStrings, styles, index, data, val, style, borders, border, borderIndex, fonts, font, fontIndex, fills, fill, fillIndex,
 		docProps, xl, xlWorksheets, worksheet, contentTypes = [[], []], props = [], xlRels = [], worksheets = [], id, columns, cols, colWidth, cell, row, merges, merged,
 		numFmts = ['General', '0', '0.00', '#,##0', '#,##0.00',,,,, '0%', '0.00%', '0.00E+00', '# ?/?', '# ??/??', 'mm-dd-yy', 'd-mmm-yy', 'd-mmm', 'mmm-yy', 'h:mm AM/PM', 'h:mm:ss AM/PM',
 			'h:mm', 'h:mm:ss', 'm/d/yy h:mm',,,,,,,,,,,,,,, '#,##0 ;(#,##0)', '#,##0 ;[Red](#,##0)', '#,##0.00;(#,##0.00)', '#,##0.00;[Red](#,##0.00)',,,,, 'mm:ss', '[h]:mm:ss', 'mmss.0', '##0.0E+0', '@'],
@@ -153,6 +153,7 @@ function xlsx(file) {
 		styles = new Array(1);
 		borders = new Array(1);
 		fonts = new Array(1);
+		fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'];
 		
 		w = file.worksheets.length;
 		while (w--) { 
@@ -169,7 +170,7 @@ function xlsx(file) {
 				s += '<row r="' + (i + 1) + '" x14ac:dyDescent="0.25">';
 				while (++j < k) {
 					cell = data[i][j]; val = cell.hasOwnProperty('value') ? cell.value : cell; t = '';
-					style = { // supported styles: borders, hAlign, formatCode and font style
+					style = {
 						borders: cell.borders, 
 						hAlign: cell.hAlign,
 						vAlign: cell.vAlign,
@@ -177,7 +178,9 @@ function xlsx(file) {
 						italic: cell.italic,
 						fontName: cell.fontName,
 						fontSize: cell.fontSize,
-						formatCode: cell.formatCode || 'General'
+						formatCode: cell.formatCode || 'General',
+                        bgColor: cell.bgColor,
+                        color: cell.color
 					};
 					colWidth = 0;
 					if ((cell.type && cell.type === 'text') || (val && typeof val === 'string' && !isFinite(val))) { 
@@ -349,7 +352,7 @@ function xlsx(file) {
 
 			// font declaration: add a new declaration and refer to it in style
 			fontIndex = 0
-			if (style.bold || style.italic || style.fontSize || style.fontName) {
+			if (style.bold || style.italic || style.fontSize || style.fontName || style.color) {
 				font = ['<font>']
 				if (style.bold) {
 					font.push('<b/>');
@@ -357,8 +360,16 @@ function xlsx(file) {
 				if (style.italic) {
 					font.push('<i/>');
 				}
+				if (style.color) {
+	                var color = style.color;
+	                if (color.length === 6) {
+	                    color = 'FF' + color;
+	                }
+	                font.push('<color rgb="' + color + '"/>');
+	            } else {
+	                font.push('<color theme="1"/>');
+	            }
 				font.push('<sz val="', style.fontSize || defaultFontSize, '"/>');
-				font.push('<color theme="1"/>');
 				font.push('<name val="', style.fontName || defaultFontName, '"/>');
 				font.push('<family val="2"/>', '</font>');
 				font = font.join('');
@@ -369,8 +380,30 @@ function xlsx(file) {
 				}
 			}
 
+			// fill declaration: add a new declaration and refer to it in style
+            fillIndex = 0;
+            if (style.bgColor) {
+                fill = ['<fill>'];
+                fill.push('<patternFill patternType="solid">');
+                var color = style.bgColor;
+                if (color.length === 6) {
+                    color = 'FF' + color;
+                }
+                fill.push('<fgColor rgb="' + color + '"/>');
+                fill.push('<bgColor indexed="64"/>');
+                fill.push('</patternFill>');
+                fill.push('</fill>');
+                fill = fill.join('');
+                fillIndex = fills.indexOf(fill);
+                if (fillIndex < 0) {
+                    fillIndex = fills.push(fill) - 1;
+                }
+            }
+
 			// declares style, and refer to optionnal formatCode, font and borders
-			styles[i] = ['<xf xfId="0" fillId="0" borderId="', 
+			styles[i] = ['<xf xfId="0" fillId="',
+                fillIndex, 
+                '" borderId="', 
 				borderIndex, 
 				'" fontId="',
 				fontIndex,
@@ -400,7 +433,8 @@ function xlsx(file) {
 
 		xl.file('styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="x14ac" xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac">'
 			+ t + '<fonts count="'+ fonts.length + '" x14ac:knownFonts="1"><font><sz val="' + defaultFontSize + '"/><color theme="1"/><name val="' + defaultFontName + '"/><family val="2"/>'
-			+ '<scheme val="minor"/></font>' + fonts.join('') + '</fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+			+ '<scheme val="minor"/></font>' + fonts.join('') + '</fonts>'
+			+ '<fills count="' + (fills.length) + '">' + fills.join('') + '</fills>'
 			+ '<borders count="' + borders.length + '"><border><left/><right/><top/><bottom/><diagonal/></border>'
 			+ borders.join('') + '</borders><cellStyleXfs count="1">'
 			+ '<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="' + styles.length + '"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
