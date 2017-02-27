@@ -3,11 +3,6 @@
 // Released under the Microsoft Office Extensible File License
 // https://raw.github.com/stephen-hardy/xlsx.js/master/LICENSE.txt
 //----------------------------------------------------------
-
-if ((typeof JSZip === 'undefined' || !JSZip) && typeof require === 'function') {
-    var JSZip = require('node-zip');
-}
-
 function xlsx(file) { 
     'use strict'; // v2.3.2
 
